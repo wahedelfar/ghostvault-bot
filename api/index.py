@@ -5,114 +5,99 @@ from http.server import BaseHTTPRequestHandler
 
 TOKEN = os.getenv("BOT_TOKEN")
 PAYMENT_NUMBER = "01063537686"
-ADMIN_ID = 8530092344 # حسابك انت
+ADMIN_ID = 8530092344
 
 PRODUCTS = {
-    "max": {"name": "🎨 كورس 3D MAX كامل", "price": 500, "desc": "1.77GB احترافي", "link": "https://www.mediafire.com/file/bqh9zcbd5b9aas6/file"},
-    "voice": {"name": "🎙️ كورس التعليق الصوتي", "price": 500, "desc": "فويس أوفر احترافي", "link": "https://www.mediafire.com/file/8xd42rfi8kqcg5o/file"},
-    "makeup": {"name": "💄 كورس ميكاب", "price": 500, "desc": "ميكاب بروفيشنال", "link": "https://www.mediafire.com/file/tqxe5181aveynly/file"},
-    "canva": {"name": "🖌️ كورس كانفا", "price": 500, "desc": "كانفا + قوالب برو", "link": "https://www.mediafire.com/file/91uhbbhsspeak47/file"},
-    "python": {"name": "🐍 كورس بايثون", "price": 500, "desc": "من الصفر", "link": "https://www.mediafire.com/file/87gtnmb7aj88a3m/file"},
-    "kids": {"name": "👶 كورس أطفال", "price": 500, "desc": "سكراتش وبايثون", "link": "https://www.mediafire.com/file/j153m2pujkjcjoy/file"},
-    "excel": {"name": "📊 كورس أكسيل", "price": 500, "desc": "من المبتدئ للخبير", "link": "https://www.mediafire.com/file/zzlkpmjxcslbq41/file"},
-    "smartshop": {"name": "🛒 SHOP X", "price": 500, "desc": "قالب متجر", "link": "https://www.mediafire.com/file/oiaf5fp9xnn5ku3/file"},
-    "smartshop_v2": {"name": "🚀 SHOP V2", "price": 1000, "desc": "قالب متطور", "link": "https://www.mediafire.com/file/oc1ao2lro2htc2v/file"},
-    "atelier": {"name": "👗 Atelier", "price": 1000, "desc": "قالب ملابس فخم", "link": "https://www.mediafire.com/file/iwjkg301jxb2lek/file"},
+    "max": {"name": "🎨 3D MAX", "price": 500, "link": "https://www.mediafire.com/file/bqh9zcbd5b9aas6/file"},
+    "voice": {"name": "🎙️ فويس أوفر", "price": 500, "link": "https://www.mediafire.com/file/8xd42rfi8kqcg5o/file"},
+    "makeup": {"name": "💄 ميكاب", "price": 500, "link": "https://www.mediafire.com/file/tqxe5181aveynly/file"},
+    "canva": {"name": "🖌️ كانفا", "price": 500, "link": "https://www.mediafire.com/file/91uhbbhsspeak47/file"},
+    "python": {"name": "🐍 بايثون", "price": 500, "link": "https://www.mediafire.com/file/87gtnmb7aj88a3m/file"},
+    "kids": {"name": "👶 أطفال", "price": 500, "link": "https://www.mediafire.com/file/j153m2pujkjcjoy/file"},
+    "excel": {"name": "📊 أكسيل", "price": 500, "link": "https://www.mediafire.com/file/zzlkpmjxcslbq41/file"},
+    "smartshop": {"name": "🛒 SHOP X", "price": 500, "link": "https://www.mediafire.com/file/oiaf5fp9xnn5ku3/file"},
+    "smartshop_v2": {"name": "🚀 SHOP V2", "price": 1000, "link": "https://www.mediafire.com/file/oc1ao2lro2htc2v/file"},
+    "atelier": {"name": "👗 Atelier", "price": 1000, "link": "https://www.mediafire.com/file/iwjkg301jxb2lek/file"},
 }
 
 def main_menu():
     kb = [[InlineKeyboardButton(f"{p['name']} - {p['price']}ج", callback_data=f"buy_{k}")] for k,p in PRODUCTS.items()]
-    kb.append([InlineKeyboardButton("🔥 الباقة الكاملة 3000ج (بدل 7000ج)", callback_data="bundle")])
+    kb.append([InlineKeyboardButton("🔥 الباقة 3000ج", callback_data="bundle")])
     return InlineKeyboardMarkup(kb)
 
 async def start(update, context):
-    txt = f"""👻 أهلاً بيك في Ghost Vault Egypt
-
-📚 متجر كورسات وقوالب رقمية - تحميل فوري بعد تأكيد الدفع
-
-💎 10 منتجات احترافية
-💳 الدفع: فودافون كاش
-📱 الرقم: {PAYMENT_NUMBER}
-
-👇 اختار المنتج:"""
+    txt = f"""👻 Ghost Vault Egypt
+📚 كورسات وقوالب - تحميل فوري
+💳 فودافون كاش: {PAYMENT_NUMBER}
+👇 اختار:"""
     await update.message.reply_text(txt, reply_markup=main_menu())
 
 async def btn(update, context):
     q = update.callback_query
     await q.answer()
-    user_id = q.from_user.id
     data = q.data
+    uid = q.from_user.id
 
-    # === أزرار الأدمن (انت) ===
-    if user_id == ADMIN_ID and data.startswith("approve_"):
-        # approve_123456_max
-        parts = data.split("_")
-        target_id = int(parts[1])
-        prod_key = "_".join(parts[2:])
+    # أدمن
+    if uid == ADMIN_ID and data.startswith("approve_"):
+        _, target_id, prod_key = data.split("_", 2)
+        target_id = int(target_id)
         try:
             if prod_key == "bundle":
-                links = "\n".join([f"{v['name']}: {v['link']}" for v in PRODUCTS.values()])
-                await context.bot.send_message(chat_id=target_id, text=f"✅ تم تأكيد الدفع 3000ج\n\n🎉 الباقة الكاملة:\n{links}")
+                links = "\n\n".join([f"{v['name']}: {v['link']}" for v in PRODUCTS.values()])
+                await context.bot.send_message(chat_id=target_id, text=f"✅ تم التأكيد - الباقة الكاملة:\n\n{links}")
             else:
                 p = PRODUCTS[prod_key]
-                await context.bot.send_message(chat_id=target_id, text=f"✅ تم تأكيد الدفع {p['price']}ج\n\n🔗 رابط {p['name']}:\n{p['link']}\n\nشكراً لثقتك! ❤️")
-            await q.edit_message_caption(caption=q.message.caption + "\n\n✅ تم التأكيد وإرسال الرابط للعميل")
+                await context.bot.send_message(chat_id=target_id, text=f"✅ تم تأكيد {p['price']}ج\n🔗 {p['name']}:\n{p['link']}")
+            await q.edit_message_caption(caption=q.message.caption + "\n\n✅ تم الإرسال")
         except Exception as e:
-            await q.edit_message_text(f"خطأ في الإرسال: {e}")
+            await q.answer(f"خطأ: {e}", show_alert=True)
         return
 
-    if user_id == ADMIN_ID and data.startswith("reject_"):
+    if uid == ADMIN_ID and data.startswith("reject_"):
         target_id = int(data.split("_")[1])
-        try:
-            await context.bot.send_message(chat_id=target_id, text="❌ السكرين مش واضح أو التحويل مش صحيح\n\nمن فضلك ابعت سكرين أوضح من تطبيق فودافون كاش فيه المبلغ والرقم\nأو كلمنا: @waheed_elfar")
-            await q.edit_message_caption(caption=q.message.caption + "\n\n❌ تم الرفض")
-        except: pass
+        await context.bot.send_message(chat_id=target_id, text="❌ السكرين مرفوض - ابعت سكرين واضح أو كلم @waheed_elfar")
+        await q.edit_message_caption(caption=q.message.caption + "\n\n❌ مرفوض")
         return
 
-    # === أزرار العميل ===
+    # عميل
     if data.startswith("buy_"):
         k = data.replace("buy_","")
         p = PRODUCTS[k]
-        context.user_data['prod']=k
-        txt = f"✅ {p['name']}\n📝 {p['desc']}\n💰 {p['price']}ج\n\n💳 حول على فودافون كاش: {PAYMENT_NUMBER}\n⚠️ لازم السكرين يكون من تطبيق فودافون كاش"
-        kb = [[InlineKeyboardButton("✅ بعت الفلوس", callback_data="paid")],[InlineKeyboardButton("⬅️ رجوع", callback_data="back")]]
+        txt = f"✅ {p['name']} - {p['price']}ج\n💳 حول على: {PAYMENT_NUMBER}\nبعدها ابعت سكرين التحويل"
+        kb = [[InlineKeyboardButton("✅ هبعت السكرين", callback_data=f"paid_{k}")],[InlineKeyboardButton("⬅️ رجوع", callback_data="back")]]
         await q.edit_message_text(txt, reply_markup=InlineKeyboardMarkup(kb))
+
+    elif data.startswith("paid_"):
+        k = data.replace("paid_","")
+        await q.edit_message_text(f"📸 ابعت سكرين تحويل {PRODUCTS.get(k, {'price':3000})['price'] if k!='bundle' else 3000}ج دلوقتي\nمهم: ابعت الصورة هنا", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ رجوع", callback_data="back")]]))
 
     elif data=="bundle":
-        context.user_data['prod']="bundle"
-        txt = f"🔥 الباقة الكاملة 10 منتجات - 3000ج بدل 7000ج\n\n💳 حول 3000ج على {PAYMENT_NUMBER}"
-        kb = [[InlineKeyboardButton("✅ حولت 3000ج", callback_data="paid")],[InlineKeyboardButton("⬅️ رجوع", callback_data="back")]]
+        txt = f"🔥 الباقة 3000ج بدل 7000ج\n💳 حول على: {PAYMENT_NUMBER}"
+        kb = [[InlineKeyboardButton("✅ هبعت سكرين الباقة", callback_data="paid_bundle")],[InlineKeyboardButton("⬅️ رجوع", callback_data="back")]]
         await q.edit_message_text(txt, reply_markup=InlineKeyboardMarkup(kb))
 
-    elif data=="paid":
-        await q.edit_message_text("📸 ابعت سكرين شوت تحويل فودافون كاش دلوقتي\n(لازم يبان فيه الرقم والمبلغ)", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ رجوع", callback_data="back")]]))
-
     elif data=="back":
-        await q.edit_message_text("🏠 القائمة الرئيسية:", reply_markup=main_menu())
+        await q.edit_message_text("🏠 القائمة:", reply_markup=main_menu())
 
 async def photo_handler(update, context):
-    if 'prod' not in context.user_data:
-        await update.message.reply_text("⚠️ اختار المنتج الأول من /start", reply_markup=main_menu())
-        return
-
-    k = context.user_data.get('prod')
     user = update.message.from_user
-    prod_name = "الباقة الكاملة" if k=="bundle" else PRODUCTS[k]['name']
-    price = "3000" if k=="bundle" else PRODUCTS[k]['price']
+    # هنحاول نعرف المنتج من آخر رسالة، لو مش عارفين هنبعت للأدمن يختار
+    caption_text = f"🔔 عميل جديد!\n👤 {user.first_name} (@{user.username})\n🆔 {user.id}\n\n📸 سكرين تحويل وصل"
 
-    # رسالة للعميل
-    await update.message.reply_text(f"✅ تم استلام السكرين\n\nجاري مراجعة تحويل {price}ج لكورس {prod_name}\nهيتم إرسال الرابط خلال دقائق بعد التأكيد ⏳")
+    # أزرار للأدمن يختار يبعت أنهي كورس
+    kb_rows = []
+    for k,p in PRODUCTS.items():
+        kb_rows.append([InlineKeyboardButton(f"✅ بعت {p['name']}", callback_data=f"approve_{user.id}_{k}")])
+    kb_rows.append([InlineKeyboardButton("✅ بعت الباقة كاملة", callback_data=f"approve_{user.id}_bundle")])
+    kb_rows.append([InlineKeyboardButton("❌ رفض", callback_data=f"reject_{user.id}")])
 
-    # رسالة ليك انت (الأدمن) مع الصورة
-    caption = f"🔔 عميل جديد!\n\n👤 {user.first_name} (@{user.username})\n🆔 {user.id}\n📦 {prod_name}\n💰 {price}ج\n\n⬇️ السكرين تحت - دوس تأكيد؟"
-    kb = [
-        [InlineKeyboardButton("✅ تأكيد وإرسال الرابط", callback_data=f"approve_{user.id}_{k}")],
-        [InlineKeyboardButton("❌ رفض", callback_data=f"reject_{user.id}")]
-    ]
     try:
-        await context.bot.send_photo(chat_id=ADMIN_ID, photo=update.message.photo[-1].file_id, caption=caption, reply_markup=InlineKeyboardMarkup(kb))
+        await context.bot.send_photo(chat_id=ADMIN_ID, photo=update.message.photo[-1].file_id, caption=caption_text, reply_markup=InlineKeyboardMarkup(kb_rows))
+        await update.message.reply_text("✅ تم استلام السكرين وجاري المراجعة ⏳\nهيوصلك الرابط خلال دقائق بعد تأكيد الأدمن")
     except Exception as e:
-        print(f"Admin send error: {e}")
+        await update.message.reply_text(f"خطأ: {e} - كلم الأدمن @waheed_elfar")
+        print(f"ADMIN SEND ERROR: {e} - ADMIN_ID {ADMIN_ID}")
 
 async def process(body):
     app = Application.builder().token(TOKEN).build()
@@ -132,6 +117,7 @@ class handler(BaseHTTPRequestHandler):
             asyncio.run(process(data))
             self.send_response(200); self.end_headers(); self.wfile.write(b"OK")
         except Exception as e:
+            print(f"ERROR: {e}")
             self.send_response(200); self.end_headers(); self.wfile.write(f"Error: {e}".encode())
     def do_GET(self):
         self.send_response(200); self.end_headers(); self.wfile.write(b"Bot is running!")
