@@ -5,7 +5,7 @@ from http.server import BaseHTTPRequestHandler
 
 TOKEN = os.getenv("BOT_TOKEN")
 PAYMENT_NUMBER = "01063537686"
-ADMIN_ID = 8084142659 # حسابك انت
+ADMIN_ID = 8530092344 # حسابك انت
 
 PRODUCTS = {
     "max": {"name": "🎨 كورس 3D MAX كامل", "price": 500, "desc": "1.77GB احترافي", "link": "https://www.mediafire.com/file/bqh9zcbd5b9aas6/file"},
