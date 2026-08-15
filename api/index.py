@@ -167,7 +167,7 @@ async def btn_handler(update, context):
                 [InlineKeyboardButton("💰 هات رابط الإحالة بتاعي", callback_data="my_referral")],
                 [InlineKeyboardButton("⬅ رجوع للقائمة", callback_data="back")]
             ])
-            await q.message.reply_text(f"🔒 **الهدية مقفولة!**\n\n📊 انت ضفت: {invited}/5 أعضاء\n\n**عشان تفتحها:**\n1. ادخل القناة {CHANNEL_USERNAME}\n2. ضيف 5 من صحابك (اعملهم Forward للقناة)\n3. خليهم يدوسوا على رابط الإحالة بتاعك\n4. ارجع دوس هنا\n\nشارك رابطك وهتاخدها أسرع!", reply_markup=markup, parse_mode='Markdown')
+            await q.message.reply_text(f"🔒 **الهدية مقفولة!**\n\n📊 انت ضفت: {invited}/5 أعضاء\n\n**عشان تفتحها:**\n1. ادخل القناة {@Ghost_Vault_egy}\n2. ضيف 5 من صحابك (اعملهم Forward للقناة)\n3. خليهم يدوسوا على رابط الإحالة بتاعك\n4. ارجع دوس هنا\n\nشارك رابطك وهتاخدها أسرع!", reply_markup=markup, parse_mode='Markdown')
 
     elif data_str == "my_referral":
         referral_link = f"https://t.me/{BOT_USERNAME}?start={uid_str}"
