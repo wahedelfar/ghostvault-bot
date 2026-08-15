@@ -1,4 +1,4 @@
-# api/index.py - النسخة الفخمة النهائية
+# api/index.py - النسخة النهائية الفخمة - بتدعم الصور والملفات + التعرف على اسم المنتج بالعربي
 import os, json, asyncio
 from flask import Flask, request
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -37,7 +37,7 @@ WELCOME_TEXT = f"""
 ✅ مشاهدة بدون نت بعد التحميل
 ✅ تحديثات مجانية للأبد
 
-🛒 **القوالب:**
+🛒 ** قوالب المتاجر:**
 ✅ أكواد خاصة بينا 100% - مش منتشرة
 ✅ تصميم عصري وسريع
 ✅ دعم فني لتثبيت القالب
@@ -47,12 +47,12 @@ WELCOME_TEXT = f"""
 فودافون كاش على: `{PAYMENT_NUMBER}`
 
 ⚠️ **مهم جداً لما تبعت السكرين:**
-1- لازم السكرين يكون من تطبيق فودافون كاش
+1- السكرين يكون من تطبيق فودافون كاش
 2- يبان فيه الرقم والمبلغ وتاريخ التحويل
 3- **اكتب مع السكرين اسم المنتج اللي اشتريته**
 
-مثال: تبعت الصورة وتكتب معاها:
-`3D MAX` أو `الباقة` أو `كانفا`
+مثال: ابعت الصورة واكتب معاها:
+`3D MAX` أو `الباقة` أو `كانفا` أو `ميكاب برو`
 
 ━━━━━━━━━━━━━━━━━━━━
 👇 **اختار المنتج اللي عايزه:**
@@ -67,7 +67,6 @@ async def btn_handler(update, context):
     data = q.data
     uid = q.from_user.id
 
-    # أدمن
     if uid == ADMIN_ID and data.startswith("approve_"):
         _, target_id, prod_key = data.split("_", 2)
         target_id = int(target_id)
@@ -124,8 +123,8 @@ async def btn_handler(update, context):
 💰 **3000ج بدل 7000ج** (خصم 57%)
 
 📦 هتاخد:
-• 7 كورسات فيديو مسجلة
-• 3 قوالب خاصة بينا
+- 7 كورسات فيديو مسجلة
+- 3 قوالب خاصة بينا
 
 💳 **حول 3000ج على:**
 `{PAYMENT_NUMBER}`
@@ -142,27 +141,56 @@ async def photo_handler(update, context):
     user = update.message.from_user
     user_caption = update.message.caption or ""
 
-    # نحاول نعرف المنتج من كلام العميل
-    guessed_product = "غير محدد"
-    lower_caption = user_caption.lower()
-    for k,p in PRODUCTS.items():
-        if k in lower_caption or p['name'].split()[1].lower() in lower_caption or str(p['price']) in lower_caption:
-            guessed_product = p['name']
-            break
-    if "باقة" in lower_caption or "bundle" in lower_caption or "3000" in lower_caption:
-        guessed_product = "الباقة الكاملة 3000ج"
+    # يدعم الصورة كصورة أو كملف
+    photo_file_id = None
+    is_document = False
+    if update.message.photo:
+        photo_file_id = update.message.photo[-1].file_id
+    elif update.message.document:
+        photo_file_id = update.message.document.file_id
+        is_document = True
+
+    if not photo_file_id:
+        return
+
+    # تخمين المنتج من الكلام العربي
+    guessed_product = "غير محدد - العميل مبعتش اسم"
+    txt = user_caption.lower()
+
+    if any(x in txt for x in ["ميكاب", "makeup", "مكياج", "ميك اب"]):
+        guessed_product = "💄 كورس الميكاب برو"
+    elif any(x in txt for x in ["ماكس", "max", "3d", "ماكس"]):
+        guessed_product = "🎨 كورس 3D MAX"
+    elif any(x in txt for x in ["كانفا", "canva", "قوالب", "5000"]):
+        guessed_product = "🖌️ كورس كانفا + 5000 قالب"
+    elif any(x in txt for x in ["بايثون", "python"]):
+        guessed_product = "🐍 كورس بايثون"
+    elif any(x in txt for x in ["اطفال", "أطفال", "kids", "طفل"]):
+        guessed_product = "👶 كورس برمجة للأطفال"
+    elif any(x in txt for x in ["اكسيل", "إكسيل", "excel"]):
+        guessed_product = "📊 كورس الإكسيل"
+    elif "shop v2" in txt or "v2" in txt or "المطور" in txt:
+        guessed_product = "🚀 قالب SHOP V2"
+    elif "shop" in txt or "متجر" in txt or "x" == txt.strip():
+        guessed_product = "🛒 قالب SHOP X"
+    elif "atelier" in txt or "ملابس" in txt or "فستان" in txt:
+        guessed_product = "👗 قالب Atelier"
+    elif any(x in txt for x in ["باقة", "الباقه", "bundle", "3000", "كاملة", "10 منتجات"]):
+        guessed_product = "🔥 الباقة الكاملة 3000ج"
+    elif any(x in txt for x in ["فويس", "voice", "تعليق", "صوتي"]):
+        guessed_product = "🎙️ كورس التعليق الصوتي"
 
     caption_text = f"""
 🔔 **عميل جديد!**
 ━━━━━━━━━━━━
 👤 {user.first_name} (@{user.username or 'بدون يوزر'})
 🆔 `{user.id}`
-📝 كاتب مع الصورة: "{user_caption or 'مكتبش حاجة'}"
-🤖 تخمين المنتج: **{guessed_product}**
+📝 كاتب مع الصورة: "{user_caption or 'مكتبش حاجة - بعت الصورة لوحدها'}"
+🤖 المنتج المطلوب: **{guessed_product}**
+📎 النوع: {'ملف' if is_document else 'صورة'}
 
 ⚠️ اتأكد من السكرين: رقم {PAYMENT_NUMBER} والمبلغ
 ━━━━━━━━━━━━
-👇 اختار هتبعتله أنهي رابط:
 """
 
     kb_rows = []
@@ -172,8 +200,12 @@ async def photo_handler(update, context):
     kb_rows.append([InlineKeyboardButton("❌ رفض - سكرين غلط", callback_data=f"reject_{user.id}")])
 
     try:
-        await context.bot.send_photo(chat_id=ADMIN_ID, photo=update.message.photo[-1].file_id, caption=caption_text, reply_markup=InlineKeyboardMarkup(kb_rows), parse_mode='Markdown')
-        await update.message.reply_text(f"✅ **تم استلام السكرين!**\n\n📦 المنتج: {user_caption or guessed_product}\n⏳ جاري المراجعة وهيوصلك الرابط خلال دقائق\n\n💡 كتبت اسم المنتج مع الصورة؟ لو لا ابعته تاني مع الاسم عشان نسرّع العملية", parse_mode='Markdown')
+        if is_document:
+            await context.bot.send_document(chat_id=ADMIN_ID, document=photo_file_id, caption=caption_text, reply_markup=InlineKeyboardMarkup(kb_rows), parse_mode='Markdown')
+        else:
+            await context.bot.send_photo(chat_id=ADMIN_ID, photo=photo_file_id, caption=caption_text, reply_markup=InlineKeyboardMarkup(kb_rows), parse_mode='Markdown')
+
+        await update.message.reply_text(f"✅ **تم استلام السكرين!**\n\n📦 المنتج: **{guessed_product}**\n📝 انت كتبت: {user_caption or 'الصورة لوحدها - يفضل تكتب اسم المنتج'}\n⏳ جاري المراجعة وهيوصلك الرابط خلال دقائق", parse_mode='Markdown')
     except Exception as e:
         print(f"ADMIN ERROR {e}")
 
@@ -181,7 +213,7 @@ async def process_update(data):
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start_cmd))
     app.add_handler(CallbackQueryHandler(btn_handler))
-    app.add_handler(MessageHandler(filters.PHOTO, photo_handler))
+    app.add_handler(MessageHandler(filters.PHOTO | filters.Document.ALL, photo_handler))
     await app.initialize()
     await app.process_update(Update.de_json(data, app.bot))
     await app.shutdown()
