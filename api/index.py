@@ -171,7 +171,7 @@ async def btn_handler(update, context):
 
     elif data_str == "my_referral":
         referral_link = f"https://t.me/{BOT_USERNAME}?start={uid_str}"
-        txt = f"💰 **رابطك الخاص للإحالة:**\n\n`{referral_link}`\n\nكل واحد يدخل من رابطك = 1 نقطة\n📊 عندك حاليا: {invited}/5\n\n🎁 5 نقاط = تاخد دليل Gumroad (1000ج)\n🔥 10 نقاط = تاخد كورس هدية\n💸 20 نقطة = 500ج فودافون كاش!\n\nشاركه في جروبات المصممين والربح من الانترنت!"
+        txt = f"💰 **رابطك الخاص للإحالة:**\n\n`{referral_link}`\n\nكل واحد يدخل من رابطك = 1 نقطة\n📊 عندك حاليا: {invited}/5\n\n🎁 5 نقاط = تاخد دليل Gumroad (1000ج)\n🔥 10 نقاط = تاخد كورس هدية\n💸 20 نقطة = قالب متجر الكتروني برمجه خاصه مجانا على بلوجر!\n\nشاركه في جروبات المصممين والربح من الانترنت!"
         kb = [[InlineKeyboardButton("🎁 شوف هدفي ({}/5)".format(invited), callback_data="gift")],[InlineKeyboardButton("⬅ رجوع", callback_data="back")]]
         await q.message.reply_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
 
