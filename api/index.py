@@ -92,6 +92,12 @@ TEXTS = {
         "deliver_single": "🎉 **تم تأكيد دفع {price}ج**\n\n📦 {name}\n📝 {desc}\n\n🔗 **رابط التحميل:**\n{link}\n\n💡 الرابط مدى الحياة\nشكراً لثقتك ❤",
         "deliver_bundle": "🎉 **مبروك! تم تأكيد دفع الباقة 3000ج**\n\n{links}\n\n💡 كل الروابط مدى الحياة\nشكراً لثقتك في Global Courses ❤",
         "reject_msg": "❌ السكرين مرفوض - مش واضح أو المبلغ غلط\n\nابعت سكرين واضح من تطبيق فودافون كاش + اكتب اسم المنتج\nأو كلمنا: @waheed_elfar",
+        "hotgpt_btn": "🔥 HotGPT — اشتراك ذكاء اصطناعي",
+        "gumroad_btn": "🛒 متجر Gumroad — كورسات ومكتبات",
+        "hotgpt_text": "🔥 **HotGPT — ذكاء اصطناعي بلا حدود في البرمجة**\n\n✅ **نماذج حرة بدون قيود على كتابة أي كود برمجي**\n✅ أدوات متخصصة: فحص أمني، هندسة عكسية، تدقيق SEO، استخراج عملاء محتملين، ومنشئ مواقع كامل\n\n💳 اشتراك شهري **٢ دولار** بس — بايبال أو فودافون كاش أو إنستا باي\n\n👇 اشترك من الموقع:",
+        "hotgpt_site_btn": "🌐 اشترك الآن — hotgpt.pro",
+        "gumroad_text": "🛒 **متجر ORVNZA Studio على Gumroad**\n\nكورسات ومكتبات رقمية — دفع بالبطاقة وتحميل فوري من Gumroad نفسه.\n\n👇 اختر منتجًا أو افتح المتجر كله:",
+        "gumroad_store_btn": "🏬 كل المنتجات على Gumroad",
     },
     "en": {
         "gift_btn": "🎁 Your free gift - Gumroad guide ({invited}/5)",
@@ -122,8 +128,32 @@ TEXTS = {
         "deliver_single": "🎉 **Your {price} EGP payment is confirmed!**\n\n📦 {name}\n📝 {desc}\n\n🔗 **Download link:**\n{link}\n\n💡 Lifetime access\nThanks for trusting us ❤",
         "deliver_bundle": "🎉 **Congrats! Your bundle payment (3000 EGP) is confirmed!**\n\n{links}\n\n💡 All links are lifetime access\nThanks for trusting Global Courses ❤",
         "reject_msg": "❌ Screenshot rejected - unclear or wrong amount\n\nSend a clear screenshot from the Vodafone Cash app + write the product name\nOr contact us: @waheed_elfar",
+        "hotgpt_btn": "🔥 HotGPT — AI subscription",
+        "gumroad_btn": "🛒 Gumroad store — courses & libraries",
+        "hotgpt_text": "🔥 **HotGPT — AI that never blocks your code**\n\n✅ **Free, unrestricted models for writing any programming code**\n✅ Plus specialized tools: security scan, reverse engineering, SEO audit, lead extraction and a full site builder\n\n💳 Just **$2/month** via PayPal\n\n👇 Get it on the site:",
+        "hotgpt_site_btn": "🌐 Subscribe now — hotgpt.pro",
+        "gumroad_text": "🛒 **ORVNZA Studio on Gumroad**\n\nDigital courses, templates and tools — card payment with instant download via Gumroad.\n\n👇 Pick a product or open the full store:",
+        "gumroad_store_btn": "🏬 All products on Gumroad",
     },
 }
+
+GUMROAD_AR = [
+    ("📄 مكتبة العقود المصرية — $7", "https://orvnza.gumroad.com/l/torzvb"),
+    ("📊 5000 شيت إكسيل جاهز — $9", "https://orvnza.gumroad.com/l/bgudpi"),
+    ("💰 كورس CPA الكامل — $7", "https://orvnza.gumroad.com/l/pcvjq"),
+    ("📣 إعلانات فيسبوك وإنستجرام — $10", "https://orvnza.gumroad.com/l/pnnjk"),
+    ("🎯 باقة الإعلانات الشاملة — $15", "https://orvnza.gumroad.com/l/opuzrz"),
+    ("🎨 فوتوشوب للمبتدئين — $7", "https://orvnza.gumroad.com/l/lwvjhb"),
+    ("🖌 تصميم سوشيال ميديا متقدم — $7", "https://orvnza.gumroad.com/l/rmdidn"),
+]
+GUMROAD_EN = [
+    ("🍽 Restaurant Menu Template — $40", "https://orvnza.gumroad.com/l/global-cafe-menu"),
+    ("🚗 ONYX Car Showcase Template — $35", "https://orvnza.gumroad.com/l/sitecar"),
+    ("🏠 Lotus Real Estate Site — $30", "https://orvnza.gumroad.com/l/luxurysite"),
+    ("🛒 SMART SHOP X v2 Template — $15", "https://orvnza.gumroad.com/l/nxovia"),
+    ("🎨 Smart Design Studio — $7", "https://orvnza.gumroad.com/l/smartdesignstudio"),
+    ("📣 AI Commercial Prompt Pack — $5", "https://orvnza.gumroad.com/l/luxaiads"),
+]
 
 def T(lang, key, **kw):
     txt = TEXTS[lang][key]
@@ -134,8 +164,15 @@ def main_menu(user_id=None, invited=0, lang="ar"):
     # زرار الهدية الفيروسية أول واحد
     kb.append([InlineKeyboardButton(T(lang, "gift_btn", invited=invited), callback_data="gift")])
     kb.append([InlineKeyboardButton(T(lang, "ref_btn", invited=invited), callback_data="my_referral")])
-    kb.extend([[InlineKeyboardButton(f"{pname(p, lang)} - {p['price']}{T(lang, 'price_suffix')}", callback_data=f"buy_{k}")] for k, p in PRODUCTS.items()])
-    kb.append([InlineKeyboardButton(T(lang, "bundle_btn"), callback_data="bundle")])
+    # كل لغة باللي يخصها: الإنجليزي يعرض فقط منتجات بايبال (تحميل فوري)،
+    # والعربي يعرض الكتالوج الكامل بفودافون كاش + بايبال حيثما وجد.
+    if lang == "en":
+        kb.extend([[InlineKeyboardButton(pname(p, lang), callback_data=f"buy_{k}")] for k, p in PRODUCTS.items() if p.get("paypal")])
+    else:
+        kb.extend([[InlineKeyboardButton(f"{pname(p, lang)} - {p['price']}{T(lang, 'price_suffix')}", callback_data=f"buy_{k}")] for k, p in PRODUCTS.items()])
+        kb.append([InlineKeyboardButton(T(lang, "bundle_btn"), callback_data="bundle")])
+    kb.append([InlineKeyboardButton(T(lang, "hotgpt_btn"), callback_data="hotgpt")])
+    kb.append([InlineKeyboardButton(T(lang, "gumroad_btn"), callback_data="gumroad")])
     kb.append([InlineKeyboardButton(T(lang, "lang_btn"), callback_data="lang_menu")])
     return InlineKeyboardMarkup(kb)
 
@@ -191,8 +228,7 @@ The Gumroad digital-products selling guide
 
 ━━━━━━━━━━━━━━━━━━━━
 💳 **Payment:**
-Vodafone Cash: `{payment}`
-Selected products also accept PayPal with instant download
+PayPal — instant download right after payment
 
 👇 **Choose from the menu:**
 """
@@ -327,17 +363,21 @@ async def btn_handler(update, context):
         k = data_str.replace("buy_", "")
         p = PRODUCTS[k]
         if lang == "en":
-            txt = f"✅ **{pname(p, lang)}**\n\n📝 {pdesc(p, lang)}\n💰 Price: {p['price']} EGP\n\n━━━━━━━━━━━━\n💳 **Vodafone Cash - transfer {p['price']} EGP to:**\n`{PAYMENT_NUMBER}`\n\n📸 **After the transfer:**\nSend the screenshot here with this in the caption:\n`{pname(p, lang)}`"
-            if p.get("paypal"):
-                txt += "\n\n━━━━━━━━━━━━\n🌍 **Or pay with PayPal** (button below) — right after payment you are redirected **straight to your download**."
+            txt = f"✅ **{pname(p, lang)}**\n\n📝 {pdesc(p, lang)}\n\n🌍 **Pay with PayPal** — tap the button below. Right after payment, PayPal redirects you **straight to your download**. Nothing else to send, no waiting."
         else:
             txt = f"✅ **{p['name']}**\n\n📝 {p['desc']}\n💰 السعر: {p['price']} جنيه\n\n━━━━━━━━━━━━\n💳 **حول {p['price']}ج على:**\n`{PAYMENT_NUMBER}`\n\n📸 **بعد التحويل:**\nابعت سكرين شوت + اكتب معاه:\n`{p['name']}`"
             if p.get("paypal"):
                 txt += T(lang, "buy_paypal_line")
-        kb = [[InlineKeyboardButton(T(lang, "paid_btn", price=p['price']), callback_data=f"paid_{k}")]]
-        if p.get("paypal"):
-            kb.append([InlineKeyboardButton(T(lang, "paypal_btn"), url=p["paypal"])])
-        kb.append([InlineKeyboardButton(T(lang, "back"), callback_data="back")])
+        if lang == "en":
+            kb = []
+            if p.get("paypal"):
+                kb.append([InlineKeyboardButton(T(lang, "paypal_btn"), url=p["paypal"])])
+            kb.append([InlineKeyboardButton(T(lang, "back"), callback_data="back")])
+        else:
+            kb = [[InlineKeyboardButton(T(lang, "paid_btn", price=p['price']), callback_data=f"paid_{k}")]]
+            if p.get("paypal"):
+                kb.append([InlineKeyboardButton(T(lang, "paypal_btn"), url=p["paypal"])])
+            kb.append([InlineKeyboardButton(T(lang, "back"), callback_data="back")])
         await q.edit_message_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
 
     elif data_str.startswith("paid_"):
@@ -352,6 +392,17 @@ async def btn_handler(update, context):
             txt = f"🔥 **الباقة الكاملة - 10 منتجات**\n\n💰 **3000ج بدل 7000ج** (خصم 57%)\n\n📦 هتاخد:\n- 7 كورسات فيديو مسجلة\n- 3 قوالب خاصة بينا\n\n💳 **حول 3000ج على:**\n`{PAYMENT_NUMBER}`\n\n📸 بعدها ابعت السكرين + اكتب `الباقة`"
         kb = [[InlineKeyboardButton(T(lang, "bundle_paid_btn"), callback_data="paid_bundle")], [InlineKeyboardButton(T(lang, "back"), callback_data="back")]]
         await q.edit_message_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+
+    elif data_str == "hotgpt":
+        kb = [[InlineKeyboardButton(T(lang, "hotgpt_site_btn"), url="https://hotgpt.pro")], [InlineKeyboardButton(T(lang, "back"), callback_data="back")]]
+        await q.edit_message_text(T(lang, "hotgpt_text"), reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+
+    elif data_str == "gumroad":
+        items = GUMROAD_EN if lang == "en" else GUMROAD_AR
+        kb = [[InlineKeyboardButton(label, url=url)] for label, url in items]
+        kb.append([InlineKeyboardButton(T(lang, "gumroad_store_btn"), url="https://orvnza.gumroad.com")])
+        kb.append([InlineKeyboardButton(T(lang, "back"), callback_data="back")])
+        await q.edit_message_text(T(lang, "gumroad_text"), reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
 
     elif data_str == "back":
         db = load_data()
