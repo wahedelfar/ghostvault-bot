@@ -1,4 +1,4 @@
-# api/index.py - Ghost Vault Egypt - النسخة الفخمة + نظام الهدية الفيروسي (ضيف 5 وخد الدليل)
+# api/index.py - Global Courses (formerly Ghost Vault Egypt) - النسخة الفخمة + نظام الهدية الفيروسي (ضيف 5 وخد الدليل)
 # v2 (2026-11-05): واجهة ثنائية اللغة (عربي/إنجليزي) + أزرار دفع PayPal للمنتجات
 # اللي صاحب المتجر عامل لها صفحات دفع جاهزة بتحويل تلقائي للتحميل بعد الدفع.
 import os, json, asyncio
@@ -90,7 +90,7 @@ TEXTS = {
         "bundle_paid_btn": "✅ حولت 3000ج - هبعت السكرين",
         "photo_ack": "✅ **تم استلام السكرين!**\n\n📦 المنتج: **{product}**\n⏳ جاري المراجعة وهيوصلك الرابط خلال دقائق",
         "deliver_single": "🎉 **تم تأكيد دفع {price}ج**\n\n📦 {name}\n📝 {desc}\n\n🔗 **رابط التحميل:**\n{link}\n\n💡 الرابط مدى الحياة\nشكراً لثقتك ❤",
-        "deliver_bundle": "🎉 **مبروك! تم تأكيد دفع الباقة 3000ج**\n\n{links}\n\n💡 كل الروابط مدى الحياة\nشكراً لثقتك في Ghost Vault ❤",
+        "deliver_bundle": "🎉 **مبروك! تم تأكيد دفع الباقة 3000ج**\n\n{links}\n\n💡 كل الروابط مدى الحياة\nشكراً لثقتك في Global Courses ❤",
         "reject_msg": "❌ السكرين مرفوض - مش واضح أو المبلغ غلط\n\nابعت سكرين واضح من تطبيق فودافون كاش + اكتب اسم المنتج\nأو كلمنا: @waheed_elfar",
     },
     "en": {
@@ -120,7 +120,7 @@ TEXTS = {
         "bundle_paid_btn": "✅ I transferred 3000 EGP - sending the screenshot",
         "photo_ack": "✅ **Screenshot received!**\n\n📦 Product: **{product}**\n⏳ Under review - your link arrives within minutes",
         "deliver_single": "🎉 **Your {price} EGP payment is confirmed!**\n\n📦 {name}\n📝 {desc}\n\n🔗 **Download link:**\n{link}\n\n💡 Lifetime access\nThanks for trusting us ❤",
-        "deliver_bundle": "🎉 **Congrats! Your bundle payment (3000 EGP) is confirmed!**\n\n{links}\n\n💡 All links are lifetime access\nThanks for trusting Ghost Vault ❤",
+        "deliver_bundle": "🎉 **Congrats! Your bundle payment (3000 EGP) is confirmed!**\n\n{links}\n\n💡 All links are lifetime access\nThanks for trusting Global Courses ❤",
         "reject_msg": "❌ Screenshot rejected - unclear or wrong amount\n\nSend a clear screenshot from the Vodafone Cash app + write the product name\nOr contact us: @waheed_elfar",
     },
 }
@@ -140,7 +140,7 @@ def main_menu(user_id=None, invited=0, lang="ar"):
     return InlineKeyboardMarkup(kb)
 
 WELCOME_TEXT_TEMPLATE = """
-👻 **أهلاً بيك في Ghost Vault Egypt** 👻
+🌍 **أهلاً بيك في Global Courses** 🌍
 المتجر رقم #1 للمنتجات الرقمية في مصر
 
 ━━━━━━━━━━━━━━━━━━━━
@@ -169,7 +169,7 @@ WELCOME_TEXT_TEMPLATE = """
 """
 
 WELCOME_TEXT_TEMPLATE_EN = """
-👻 **Welcome to Ghost Vault Egypt** 👻
+🌍 **Welcome to Global Courses** 🌍
 The #1 digital products store
 
 ━━━━━━━━━━━━━━━━━━━━
@@ -232,7 +232,7 @@ async def start_cmd(update, context):
 
     # اختيار اللغة لأول مرة
     if not data.get(user_id, {}).get("lang"):
-        await update.message.reply_text("👻 **Ghost Vault Egypt** 👻\n\nاختر لغتك 👇\nChoose your language 👇", reply_markup=LANG_CHOOSER_MARKUP, parse_mode='Markdown')
+        await update.message.reply_text("🌍 **Global Courses** 🌍\n\nاختر لغتك 👇\nChoose your language 👇", reply_markup=LANG_CHOOSER_MARKUP, parse_mode='Markdown')
         return
 
     lang = get_lang(data, user_id)
@@ -289,7 +289,7 @@ async def btn_handler(update, context):
 
     # اختيار / تغيير اللغة
     if data_str == "lang_menu":
-        await q.edit_message_text("👻 **Ghost Vault Egypt** 👻\n\nاختر لغتك 👇\nChoose your language 👇", reply_markup=LANG_CHOOSER_MARKUP, parse_mode='Markdown')
+        await q.edit_message_text("🌍 **Global Courses** 🌍\n\nاختر لغتك 👇\nChoose your language 👇", reply_markup=LANG_CHOOSER_MARKUP, parse_mode='Markdown')
         return
     if data_str in ("lang_ar", "lang_en"):
         lang = "ar" if data_str == "lang_ar" else "en"
@@ -427,14 +427,14 @@ flask_app = Flask(__name__)
 
 @flask_app.route('/', methods=['GET'])
 def home():
-    return "Bot is running! Ghost Vault Egypt - Viral Gift"
+    return "Bot is running! Global Courses - Viral Gift"
 
 @flask_app.route('/api', methods=['POST', 'GET'])
 @flask_app.route('/api/index', methods=['POST', 'GET'])
 @flask_app.route('/', methods=['POST'])
 def webhook():
     if request.method == 'GET':
-        return "Bot is running! Ghost Vault - Viral"
+        return "Bot is running! Global Courses - Viral"
     try:
         data = request.get_json(force=True)
         asyncio.run(process_update(data))
