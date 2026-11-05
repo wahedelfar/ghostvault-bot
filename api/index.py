@@ -1,9 +1,14 @@
 # api/index.py - Global Courses (formerly Ghost Vault Egypt) - النسخة الفخمة + نظام الهدية الفيروسي (ضيف 5 وخد الدليل)
+# v5 (2026-11-05): تحقق آلي من إثباتات فودافون كاش — نموذج الرؤية (APInex) بيستخرج
+# الحقول بس والكود الحتمي بيحكم (مبلغ = سعر المنتج المُغذّى من اختيار العميل، مستلم،
+# رقم عملية، حداثة ٤٨ ساعة، منع إعادة استخدام الإثبات) — نجاح = تسليم فوري للعميل +
+# إشعار أدمن بدون أزرار؛ أي شك = المسار اليدوي العادي + سطر القراءة الآلية وسببها.
 # v4 (2026-11-05): زرار قائمة رئيسية سفلي ثابت — واحد فقط وبيتبع لغة كل مستخدم،
 # وبيصلّح الكيبورد العربي القديم المتبقي عند المستخدمين تلقائيًا أول ضغطة أو /start.
 # v2 (2026-11-05): واجهة ثنائية اللغة (عربي/إنجليزي) + أزرار دفع PayPal للمنتجات
 # اللي صاحب المتجر عامل لها صفحات دفع جاهزة بتحويل تلقائي للتحميل بعد الدفع.
-import os, json, asyncio
+import os, json, asyncio, hashlib, time, re, base64, urllib.request, urllib.error
+from datetime import datetime, timezone, timedelta
 from flask import Flask, request
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters
@@ -63,6 +68,120 @@ LANG_CHOOSER_MARKUP = InlineKeyboardMarkup([
     [InlineKeyboardButton("🇪🇬 العربية", callback_data="lang_ar")],
     [InlineKeyboardButton("🇬🇧 English", callback_data="lang_en")],
 ])
+
+# ===== التحقق الآلي من إثباتات فودافون كاش (v5) =====
+# نفس نموذج HotGPT المُختبَر حيًا: نموذج الرؤية بيستخرج الحقول بس، والكود الحتمي بيحكم.
+# تغذية الأسعار: سعر المنتج اللي العميل اختاره ودوس «حوّلت» (pending) أو اسم المنتج في الكابشن.
+# أي فشل (مفتاح APInex مش موجود/النموذج واقف/قراءة ناقصة) = رجوع صامت للمراجعة اليدوية.
+APINEX_API_KEY = os.getenv("APINEX_API_KEY", "").strip()
+APINEX_VISION_MODEL = os.getenv("APINEX_VISION_MODEL", "free/deepseek-v4.1-flash").strip()
+AUTO_VERIFY_RECIPIENTS = {"01063537686", "201063537686", "+201063537686"}
+BUNDLE_PRICE = 3000
+AUTO_VERIFY_PROMPT = "You are an extraction engine for payment receipts. Read the attached receipt image and extract ONLY these fields. Reply with a single JSON object and nothing else: {\"amount\": <number or null>, \"currency\": \"EGP\", \"recipient\": \"<phone number or handle exactly as shown, or null>\", \"datetime\": \"<YYYY-MM-DD HH:MM or null>\", \"txn_ref\": \"<transaction/reference id exactly as shown, or null>\", \"confidence\": <0 to 1>}. Do not guess values that are not visible."
+AUTO_REASONS_AR = {
+    "amount_mismatch": "المبلغ المقروء لا يطابق سعر المنتج المطلوب",
+    "recipient_mismatch": "المستلم المقروء ليس رقم الاستقبال",
+    "ref_missing": "رقم العملية غير مقروء من الصورة",
+    "datetime_unreadable": "تاريخ العملية غير مقروء",
+    "datetime_stale": "تاريخ العملية خارج نافذة ٤٨ ساعة",
+    "proof_reused": "الإثبات أو رقم العملية مستخدم في طلب مقبول من قبل",
+    "product_unknown": "المنتج غير محدد — لا اختيار مسجل ولا اسم واضح في الكابشن",
+    "product_mismatch": "المنتج في الكابشن لا يطابق المنتج اللي العميل اختاره",
+}
+# ربط اسم المنتج المخمّن من الكابشن بمفتاحه في الكتالوج
+GUESS_KEYS = {
+    "💄 كورس الميكاب برو": "makeup",
+    "🎨 كورس 3D MAX": "max",
+    "🖌 كورس كانفا + 5000 قالب": "canva",
+    "🐍 كورس بايثون": "python",
+    "👶 كورس برمجة للأطفال": "kids",
+    "📊 كورس الإكسيل": "excel",
+    "🚀 قالب SHOP V2": "smartshop_v2",
+    "🛒 قالب SHOP X": "smartshop",
+    "👗 قالب Atelier": "atelier",
+    "🔥 الباقة الكاملة 3000ج": "bundle",
+    "🎙 كورس التعليق الصوتي": "voice",
+}
+
+def _wall_minutes(dt):
+    return int(datetime(dt.year, dt.month, dt.day, dt.hour, dt.minute, tzinfo=timezone.utc).timestamp() // 60)
+
+def _cairo_wall_minutes():
+    try:
+        from zoneinfo import ZoneInfo
+        return _wall_minutes(datetime.now(ZoneInfo("Africa/Cairo")))
+    except Exception:
+        return _wall_minutes(datetime.now(timezone(timedelta(hours=2))))
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+def extract_proof_fields(img_bytes, mime):
+    if not APINEX_API_KEY:
+        return None
+    payload = {
+        "model": APINEX_VISION_MODEL,
+        "temperature": 0,
+        "messages": [{"role": "user", "content": [
+            {"type": "text", "text": AUTO_VERIFY_PROMPT},
+            {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{base64.b64encode(img_bytes).decode()}"}},
+        ]}],
+    }
+    req = urllib.request.Request(
+        "https://api.apinex.bond/v1/chat/completions",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Authorization": f"Bearer {APINEX_API_KEY}", "Content-Type": "application/json", "User-Agent": "GlobalCourses/1.0 (API client)"},
+        method="POST",
+    )
+    try:
+        opener = urllib.request.build_opener(_NoRedirect)
+        with opener.open(req, timeout=20) as resp:
+            data = json.loads(resp.read().decode("utf-8", "replace"))
+    except Exception as e:
+        print(f"AUTO-VERIFY extraction failed: {e}")
+        return None
+    try:
+        txt = ((data.get("choices") or [{}])[0].get("message") or {}).get("content") or ""
+    except Exception:
+        return None
+    s, e = txt.find("{"), txt.rfind("}")
+    if s < 0 or e <= s:
+        return None
+    try:
+        parsed = json.loads(txt[s:e + 1])
+    except Exception:
+        return None
+    amount = parsed.get("amount")
+    try:
+        amount = float(amount) if amount is not None else None
+    except Exception:
+        amount = None
+    if amount is not None and amount == int(amount):
+        amount = int(amount)
+    return {
+        "amount": amount,
+        "recipient": str(parsed["recipient"]) if parsed.get("recipient") else None,
+        "datetime": str(parsed["datetime"]) if parsed.get("datetime") else None,
+        "txn_ref": str(parsed["txn_ref"]) if parsed.get("txn_ref") else None,
+    }
+
+def judge_proof(expected_price, extraction):
+    if extraction["amount"] is None or extraction["amount"] != expected_price:
+        return False, "amount_mismatch"
+    recipient = (extraction["recipient"] or "").replace(" ", "").replace("-", "").lower()
+    if not recipient or recipient not in AUTO_VERIFY_RECIPIENTS:
+        return False, "recipient_mismatch"
+    if not extraction["txn_ref"]:
+        return False, "ref_missing"
+    m = re.match(r"^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})", extraction["datetime"] or "")
+    if not m:
+        return False, "datetime_unreadable"
+    when = _wall_minutes(datetime(int(m.group(1)), int(m.group(2)), int(m.group(3)), int(m.group(4)), int(m.group(5))))
+    diff = _cairo_wall_minutes() - when
+    if diff < -60 or diff > 48 * 60:
+        return False, "datetime_stale"
+    return True, "all_checks_passed"
 
 TEXTS = {
     "ar": {
@@ -409,6 +528,12 @@ async def btn_handler(update, context):
 
     elif data_str.startswith("paid_"):
         k = data_str.replace("paid_", "")
+        # تغذية الأسعار للتحقق الآلي: تسجيل المنتج اللي العميل قال إنه حوّل تمنه
+        if k in PRODUCTS or k == "bundle":
+            if uid_str not in db:
+                db[uid_str] = {"invited": 0, "got_gift": False, "invited_list": []}
+            db[uid_str]["pending"] = {"key": k, "price": PRODUCTS[k]["price"] if k in PRODUCTS else BUNDLE_PRICE, "ts": int(time.time())}
+            save_data(db)
         prod_name = pname(PRODUCTS[k], lang) if k in PRODUCTS else ("🔥 Full Bundle" if lang == "en" else "الباقة")
         await q.edit_message_text(T(lang, "paid_prompt", name=prod_name), parse_mode='Markdown', reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(T(lang, "back_short"), callback_data="back")]]))
 
@@ -504,11 +629,96 @@ async def photo_handler(update, context):
     kb_rows.append([InlineKeyboardButton("✅🔥 الباقة (3000ج)", callback_data=f"approve_{user.id}_bundle")])
     kb_rows.append([InlineKeyboardButton("❌ رفض", callback_data=f"reject_{user.id}")])
 
+    # ===== التحقق الآلي (v5): محاولة قبل الإرسال للأدمن =====
+    # نجاح كامل = تسليم فوري للعميل + إشعار أدمن بدون أزرار. غير كده المسار اليدوي تحت
+    # بيكمل زي ما هو، مع سطر القراءة الآلية وسبب عدم القبول لو القراءة نجحت.
+    auto_note = ""
+    db = load_data()
+    uid_str = str(user.id)
+    buyer_lang = get_lang(db, uid_str)
+    guessed_key = GUESS_KEYS.get(guessed_product)
+    pending = db.get(uid_str, {}).get("pending") or {}
+    pending_fresh = bool(pending.get("key")) and (int(time.time()) - int(pending.get("ts", 0)) < 24 * 3600)
+    expected_key = pending["key"] if pending_fresh else guessed_key
+    mismatch = bool(pending_fresh and guessed_key and guessed_key != pending["key"])
+    expected_price = None
+    if expected_key == "bundle":
+        expected_price = BUNDLE_PRICE
+    elif expected_key in PRODUCTS:
+        expected_price = PRODUCTS[expected_key]["price"]
+
+    doc_mime = (update.message.document.mime_type or "") if update.message.document else ""
+    can_extract = bool(update.message.photo) or doc_mime.startswith("image/")
+    extraction = None
+    raw = None
+    if APINEX_API_KEY and can_extract:
+        try:
+            f = await context.bot.get_file(photo_file_id)
+            raw = bytes(await f.download_as_bytearray())
+            fp = (f.file_path or "").lower()
+            mime = "image/png" if fp.endswith(".png") else "image/webp" if fp.endswith(".webp") else "image/jpeg"
+            extraction = await asyncio.to_thread(extract_proof_fields, raw, mime)
+        except Exception as e:
+            print(f"AUTO-VERIFY fetch failed: {e}")
+            extraction = None
+
+    if extraction and raw is not None:
+        sha = hashlib.sha256(raw).hexdigest()
+        if mismatch:
+            verdict, reason = False, "product_mismatch"
+        elif expected_price is None:
+            verdict, reason = False, "product_unknown"
+        else:
+            verdict, reason = judge_proof(expected_price, extraction)
+        if verdict:
+            try:
+                proofs = db.get("_proofs", [])
+                reused = any(p.get("h") == sha or (extraction["txn_ref"] and p.get("ref") == extraction["txn_ref"]) for p in proofs)
+            except Exception:
+                reused = True
+            if reused:
+                verdict, reason = False, "proof_reused"
+        try:
+            log = db.get("_auto_log", [])
+            log.append({"ts": int(time.time()), "uid": user.id, "key": expected_key, "decision": "approve" if verdict else "manual", "reason": reason, "extraction": extraction})
+            db["_auto_log"] = log[-50:]
+            save_data(db)
+        except Exception:
+            pass
+        if verdict:
+            try:
+                if expected_key == "bundle":
+                    links = "\n\n".join([f"✅ {pname(v, buyer_lang)}:\n{v['link']}" for v in PRODUCTS.values()])
+                    dmsg = T(buyer_lang, "deliver_bundle", links=links)
+                else:
+                    p = PRODUCTS[expected_key]
+                    dmsg = T(buyer_lang, "deliver_single", price=p['price'], name=pname(p, buyer_lang), desc=pdesc(p, buyer_lang), link=p['link'])
+                await context.bot.send_message(chat_id=user.id, text=dmsg, parse_mode='Markdown')
+                proofs = db.get("_proofs", [])
+                proofs.append({"h": sha, "ref": extraction["txn_ref"], "uid": user.id, "key": expected_key, "ts": int(time.time())})
+                db["_proofs"] = proofs[-200:]
+                if uid_str in db:
+                    db[uid_str].pop("pending", None)
+                save_data(db)
+            except Exception as e:
+                print(f"AUTO-VERIFY approve failed, manual fallback: {e}")
+            else:
+                auto_caption = caption_text + f"\n━━━━━━━━━━━━\n🤖✅ **قُبل وسُلّم تلقائيًا** — قراءة آلية موثّقة\n💰 المبلغ المقروء: {extraction['amount']}ج (المطلوب {expected_price}ج)\n📱 المستلم: {extraction['recipient']}\n🔢 العملية: {extraction['txn_ref']}\n🕐 التاريخ: {extraction['datetime']}"
+                try:
+                    if is_document:
+                        await context.bot.send_document(chat_id=ADMIN_ID, document=photo_file_id, caption=auto_caption, parse_mode='Markdown')
+                    else:
+                        await context.bot.send_photo(chat_id=ADMIN_ID, photo=photo_file_id, caption=auto_caption, parse_mode='Markdown')
+                except Exception as e:
+                    print(f"AUTO-VERIFY admin notify failed: {e}")
+                return
+        auto_note = f"\n━━━━━━━━━━━━\n🤖 قراءة آلية: مبلغ {extraction['amount'] if extraction['amount'] is not None else '—'} — مستلم {extraction['recipient'] or '—'} — عملية {extraction['txn_ref'] or '—'}\nلم يُقبل تلقائيًا: {AUTO_REASONS_AR.get(reason, reason)} — القرار لك 👇"
+
     try:
         if is_document:
-            await context.bot.send_document(chat_id=ADMIN_ID, document=photo_file_id, caption=caption_text, reply_markup=InlineKeyboardMarkup(kb_rows), parse_mode='Markdown')
+            await context.bot.send_document(chat_id=ADMIN_ID, document=photo_file_id, caption=caption_text + auto_note, reply_markup=InlineKeyboardMarkup(kb_rows), parse_mode='Markdown')
         else:
-            await context.bot.send_photo(chat_id=ADMIN_ID, photo=photo_file_id, caption=caption_text, reply_markup=InlineKeyboardMarkup(kb_rows), parse_mode='Markdown')
+            await context.bot.send_photo(chat_id=ADMIN_ID, photo=photo_file_id, caption=caption_text + auto_note, reply_markup=InlineKeyboardMarkup(kb_rows), parse_mode='Markdown')
         db = load_data()
         user_lang = get_lang(db, str(user.id))
         await update.message.reply_text(T(user_lang, "photo_ack", product=guessed_product), parse_mode='Markdown')
