@@ -1,4 +1,6 @@
 # api/index.py - Global Courses (formerly Ghost Vault Egypt) - النسخة الفخمة + نظام الهدية الفيروسي (ضيف 5 وخد الدليل)
+# v5.1 (2026-11-05): قسم «شراء عبر الموقع» في القايمة العربي فقط — رابط لموقع
+# الكورسات (corsat.vercel.app) للي بيفضلوا يشتروا من موقع بدل تليجرام.
 # v5 (2026-11-05): تحقق آلي من إثباتات فودافون كاش — نموذج الرؤية (APInex) بيستخرج
 # الحقول بس والكود الحتمي بيحكم (مبلغ = سعر المنتج المُغذّى من اختيار العميل، مستلم،
 # رقم عملية، حداثة ٤٨ ساعة، منع إعادة استخدام الإثبات) — نجاح = تسليم فوري للعميل +
@@ -221,6 +223,9 @@ TEXTS = {
         "hotgpt_site_btn": "🌐 اشترك الآن — hotgpt.pro",
         "gumroad_text": "🛒 **متجر ORVNZA Studio على Gumroad**\n\nكورسات ومكتبات رقمية — دفع بالبطاقة وتحميل فوري من Gumroad نفسه.\n\n👇 اختر منتجًا أو افتح المتجر كله:",
         "gumroad_store_btn": "🏬 كل المنتجات على Gumroad",
+        "site_btn": "🌐 شراء عبر الموقع",
+        "site_text": "🌐 **شراء عبر الموقع**\n\nلو بتفضّل تشتري من موقع بدل تليجرام، متجرنا على الويب فيه نفس الكورسات ومنتجات أكتر (لغة ألمانية، فوتوشوب، إخراج سينمائي، مكتبات تصميم وغيرها).\n\n💳 الدفع هناك بفودافون كاش أو PayPal — اختر الكورس وكمّل الشراء من الموقع 👇",
+        "site_open_btn": "🛒 افتح موقع الكورسات",
     },
     "en": {
         "gift_btn": "🎁 Your free gift - Gumroad guide ({invited}/5)",
@@ -298,6 +303,8 @@ def main_menu(user_id=None, invited=0, lang="ar"):
         kb.append([InlineKeyboardButton(T(lang, "bundle_btn"), callback_data="bundle")])
     kb.append([InlineKeyboardButton(T(lang, "hotgpt_btn"), callback_data="hotgpt")])
     kb.append([InlineKeyboardButton(T(lang, "gumroad_btn"), callback_data="gumroad")])
+    if lang != "en":
+        kb.append([InlineKeyboardButton(T(lang, "site_btn"), callback_data="site")])
     kb.append([InlineKeyboardButton(T(lang, "lang_btn"), callback_data="lang_menu")])
     return InlineKeyboardMarkup(kb)
 
@@ -548,6 +555,10 @@ async def btn_handler(update, context):
     elif data_str == "hotgpt":
         kb = [[InlineKeyboardButton(T(lang, "hotgpt_site_btn"), url="https://hotgpt.pro")], [InlineKeyboardButton(T(lang, "back"), callback_data="back")]]
         await q.edit_message_text(T(lang, "hotgpt_text"), reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+
+    elif data_str == "site":
+        kb = [[InlineKeyboardButton(T(lang, "site_open_btn"), url="https://corsat.vercel.app")], [InlineKeyboardButton(T(lang, "back"), callback_data="back")]]
+        await q.edit_message_text(T(lang, "site_text"), reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
 
     elif data_str == "gumroad":
         items = GUMROAD_EN if lang == "en" else GUMROAD_AR
