@@ -1,9 +1,11 @@
 # api/index.py - Global Courses (formerly Ghost Vault Egypt) - النسخة الفخمة + نظام الهدية الفيروسي (ضيف 5 وخد الدليل)
+# v4 (2026-11-05): زرار قائمة رئيسية سفلي ثابت — واحد فقط وبيتبع لغة كل مستخدم،
+# وبيصلّح الكيبورد العربي القديم المتبقي عند المستخدمين تلقائيًا أول ضغطة أو /start.
 # v2 (2026-11-05): واجهة ثنائية اللغة (عربي/إنجليزي) + أزرار دفع PayPal للمنتجات
 # اللي صاحب المتجر عامل لها صفحات دفع جاهزة بتحويل تلقائي للتحميل بعد الدفع.
 import os, json, asyncio
 from flask import Flask, request
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 
 TOKEN = os.getenv("BOT_TOKEN")
@@ -69,6 +71,8 @@ TEXTS = {
         "price_suffix": "ج",
         "bundle_btn": "🔥 الباقة الكاملة 10 منتجات - 3000ج بدل 7000ج",
         "lang_btn": "🌐 Language / تغيير اللغة",
+        "home_btn": "🏠 القائمة الرئيسية للكورسات",
+        "kb_ready": "⌨️ زرار القائمة الرئيسية اتظبط تحت بلغتك 👇",
         "status_open": "✅ الهدية مفتوحة - دوس على الزرار وخدها!",
         "status_locked": "🔒 ضيف 5 أعضاء للقناة وخدها فوراً",
         "status_open_short": "✅ الهدية مفتوحة!",
@@ -105,6 +109,8 @@ TEXTS = {
         "price_suffix": " EGP",
         "bundle_btn": "🔥 Full bundle: 10 products - 3000 EGP instead of 7000",
         "lang_btn": "🌐 اللغة / Language",
+        "home_btn": "🏠 Main Menu",
+        "kb_ready": "⌨️ Your Main Menu button is set below, in your language 👇",
         "status_open": "✅ Your gift is unlocked - tap the button and grab it!",
         "status_locked": "🔒 Invite 5 members to the channel and grab it instantly",
         "status_open_short": "✅ Gift unlocked!",
@@ -175,6 +181,18 @@ def main_menu(user_id=None, invited=0, lang="ar"):
     kb.append([InlineKeyboardButton(T(lang, "gumroad_btn"), callback_data="gumroad")])
     kb.append([InlineKeyboardButton(T(lang, "lang_btn"), callback_data="lang_menu")])
     return InlineKeyboardMarkup(kb)
+
+# زرار القائمة الرئيسية السفلي (كيبورد ثابت) — واحد فقط، وبيتبع لغة كل مستخدم.
+# النص العربي هو نفسه نص الزرار القديم، فالضغطة على الكيبورد القديم المتبقي
+# عند أي مستخدم تفضل شغالة وبتتصلح تلقائيًا للغته.
+def home_keyboard(lang):
+    return ReplyKeyboardMarkup([[KeyboardButton(T(lang, "home_btn"))]], resize_keyboard=True, is_persistent=True)
+
+HOME_BTN_TEXTS = {
+    TEXTS["ar"]["home_btn"], TEXTS["en"]["home_btn"],
+    "القائمة الرئيسية للكورسات", "القائمة الرئيسية", "🏠 القائمة الرئيسية",
+    "Main Menu",
+}
 
 WELCOME_TEXT_TEMPLATE = """
 🌍 **أهلاً بيك في Global Courses** 🌍
@@ -276,6 +294,12 @@ async def start_cmd(update, context):
     got_gift = data.get(user_id, {}).get("got_gift", False)
     status = T(lang, "status_open") if invited >= 5 or got_gift else T(lang, "status_locked")
 
+    # تثبيت/تصليح الكيبورد السفلي بلغة المستخدم (مرة واحدة، وبيتجدد مع تغيير اللغة)
+    if data.get(user_id, {}).get("kb_lang") != lang:
+        await update.message.reply_text(T(lang, "kb_ready"), reply_markup=home_keyboard(lang))
+        data[user_id]["kb_lang"] = lang
+        save_data(data)
+
     text = welcome_text(lang, invited, status)
     await update.message.reply_text(text, reply_markup=main_menu(user_id, invited, lang), parse_mode='Markdown')
 
@@ -332,9 +356,12 @@ async def btn_handler(update, context):
         if uid_str not in db:
             db[uid_str] = {"invited": 0, "got_gift": False, "invited_list": []}
         db[uid_str]["lang"] = lang
+        db[uid_str]["kb_lang"] = lang
         save_data(db)
         text, markup = render_welcome(lang, db, uid_str)
         await q.edit_message_text(text, reply_markup=markup, parse_mode='Markdown')
+        # الكيبورد السفلي ما بيتركبش على رسالة معدّلة — بيتبعت في رسالة جديدة بلغته
+        await q.message.reply_text(T(lang, "kb_ready"), reply_markup=home_keyboard(lang))
         return
 
     lang = get_lang(db, uid_str)
@@ -409,6 +436,29 @@ async def btn_handler(update, context):
         text, markup = render_welcome(get_lang(db, uid_str), db, uid_str)
         await q.edit_message_text(text, reply_markup=markup, parse_mode='Markdown')
 
+async def home_btn_handler(update, context):
+    # ضغطة زرار القائمة الرئيسية السفلي (أو الزرار القديم بالعربي عند مستخدم لغته إنجليزي)
+    if not update.message or not update.message.text:
+        return
+    if update.message.text.strip() not in HOME_BTN_TEXTS:
+        return
+    uid_str = str(update.effective_user.id)
+    db = load_data()
+    if uid_str not in db:
+        db[uid_str] = {"invited": 0, "got_gift": False, "invited_list": []}
+        save_data(db)
+    lang = db.get(uid_str, {}).get("lang")
+    if lang not in ("ar", "en"):
+        await update.message.reply_text("🌍 **Global Courses** 🌍\n\nاختر لغتك 👇\nChoose your language 👇", reply_markup=LANG_CHOOSER_MARKUP, parse_mode='Markdown')
+        return
+    # لو الكيبورد اللي عند المستخدم مش بلغته (قديم أو لغة اتغيرت) بيتصلح هنا
+    if db.get(uid_str, {}).get("kb_lang") != lang:
+        await update.message.reply_text(T(lang, "kb_ready"), reply_markup=home_keyboard(lang))
+        db[uid_str]["kb_lang"] = lang
+        save_data(db)
+    text, markup = render_welcome(lang, db, uid_str)
+    await update.message.reply_text(text, reply_markup=markup, parse_mode='Markdown')
+
 async def photo_handler(update, context):
     user = update.message.from_user
     user_caption = update.message.caption or ""
@@ -469,6 +519,7 @@ async def process_update(data):
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start_cmd))
     app.add_handler(CallbackQueryHandler(btn_handler))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, home_btn_handler))
     app.add_handler(MessageHandler(filters.PHOTO | filters.Document.ALL, photo_handler))
     await app.initialize()
     await app.process_update(Update.de_json(data, app.bot))
