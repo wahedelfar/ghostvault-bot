@@ -1,4 +1,6 @@
 # api/index.py - Global Courses (formerly Ghost Vault Egypt) - النسخة الفخمة + نظام الهدية الفيروسي (ضيف 5 وخد الدليل)
+# v5.4 (2026-11-05): تنظيف الكيبورد بقى صامت — بيركب على رسالة الترحيب/تأكيد اللغة
+# نفسها، من غير رسالة «تم تحديث الواجهة» المنفصلة اللي اشتكى منها وحيد.
 # v5.3 (2026-11-05): إزالة زرار القائمة الرئيسة السفلي نهائيًا (قرار وحيد بعد تجربته)
 # — البوت بينضّف الكيبورد من عند أي مستخدم وصله، بلا رجعة.
 # v5.2 (2026-11-05): إعادة نشر لتفعيل APINEX_API_KEY في بيئة الإنتاج (التحقق الآلي حي).
@@ -196,7 +198,7 @@ TEXTS = {
         "bundle_btn": "🔥 الباقة الكاملة 10 منتجات - 3000ج بدل 7000ج",
         "lang_btn": "🌐 Language / تغيير اللغة",
         "home_btn": "🏠 القائمة الرئيسية للكورسات",
-        "kb_removed": "⌨️ تم تحديث الواجهة — زرار القائمة السفلي اتشال",
+        "lang_set": "✅ اللغة بقت العربية",
         "status_open": "✅ الهدية مفتوحة - دوس على الزرار وخدها!",
         "status_locked": "🔒 ضيف 5 أعضاء للقناة وخدها فوراً",
         "status_open_short": "✅ الهدية مفتوحة!",
@@ -237,7 +239,7 @@ TEXTS = {
         "bundle_btn": "🔥 Full bundle: 10 products - 3000 EGP instead of 7000",
         "lang_btn": "🌐 اللغة / Language",
         "home_btn": "🏠 Main Menu",
-        "kb_removed": "⌨️ Interface updated — the bottom menu button was removed",
+        "lang_set": "✅ Language switched to English",
         "status_open": "✅ Your gift is unlocked - tap the button and grab it!",
         "status_locked": "🔒 Invite 5 members to the channel and grab it instantly",
         "status_open_short": "✅ Gift unlocked!",
@@ -419,14 +421,16 @@ async def start_cmd(update, context):
     got_gift = data.get(user_id, {}).get("got_gift", False)
     status = T(lang, "status_open") if invited >= 5 or got_gift else T(lang, "status_locked")
 
-    # تنظيف الكيبورد السفلي لو كان اتركب عند المستخدم قبل v5.3 (مرة واحدة)
+    text = welcome_text(lang, invited, status)
+    # تنظيف الكيبورد السفلي لو كان اتركب عند المستخدم قبل v5.3 — التنظيف بيركب على
+    # رسالة الترحيب نفسها وبعدها القايمة، من غير أي رسالة إعلان منفصلة (مرة واحدة)
     if data.get(user_id, {}).get("kb_lang"):
-        await update.message.reply_text(T(lang, "kb_removed"), reply_markup=ReplyKeyboardRemove())
+        await update.message.reply_text(text, reply_markup=ReplyKeyboardRemove(), parse_mode='Markdown')
+        await update.message.reply_text("👇", reply_markup=main_menu(user_id, invited, lang))
         data[user_id].pop("kb_lang", None)
         save_data(data)
-
-    text = welcome_text(lang, invited, status)
-    await update.message.reply_text(text, reply_markup=main_menu(user_id, invited, lang), parse_mode='Markdown')
+    else:
+        await update.message.reply_text(text, reply_markup=main_menu(user_id, invited, lang), parse_mode='Markdown')
 
 def render_welcome(lang, db, uid_str):
     invited = db.get(uid_str, {}).get("invited", 0)
@@ -487,7 +491,8 @@ async def btn_handler(update, context):
         text, markup = render_welcome(lang, db, uid_str)
         await q.edit_message_text(text, reply_markup=markup, parse_mode='Markdown')
         if had_kb:
-            await q.message.reply_text(T(lang, "kb_removed"), reply_markup=ReplyKeyboardRemove())
+            # تأكيد تبديل اللغة شايل معاه تنظيف الكيبورد السفلي القديم
+            await q.message.reply_text(T(lang, "lang_set"), reply_markup=ReplyKeyboardRemove())
         return
 
     lang = get_lang(db, uid_str)
@@ -587,13 +592,14 @@ async def home_btn_handler(update, context):
     if lang not in ("ar", "en"):
         await update.message.reply_text("🌍 **Global Courses** 🌍\n\nاختر لغتك 👇\nChoose your language 👇", reply_markup=LANG_CHOOSER_MARKUP, parse_mode='Markdown')
         return
-    # الضغطة معناها إن عنده كيبورد سفلي لسه — بيتنضف هنا (v5.3) والقايمة بتفتح بعده
-    await update.message.reply_text(T(lang, "kb_removed"), reply_markup=ReplyKeyboardRemove())
+    # الضغطة معناها إن عنده كيبورد سفلي لسه — التنظيف بيركب على رسالة الترحيب
+    # نفسها وبعدها القايمة، من غير أي رسالة إعلان منفصلة
     if db.get(uid_str, {}).get("kb_lang"):
         db[uid_str].pop("kb_lang", None)
         save_data(db)
     text, markup = render_welcome(lang, db, uid_str)
-    await update.message.reply_text(text, reply_markup=markup, parse_mode='Markdown')
+    await update.message.reply_text(text, reply_markup=ReplyKeyboardRemove(), parse_mode='Markdown')
+    await update.message.reply_text("👇", reply_markup=markup)
 
 async def photo_handler(update, context):
     user = update.message.from_user
